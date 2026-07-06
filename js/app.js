@@ -5,13 +5,26 @@
   const MODULES = window.MODULES;
   const app = document.getElementById("app");
 
+  /* ---------- account (nickname locale, nessun account reale) ---------- */
+  const USER_KEY = "la-ghisa-user";
+
+  function loadUser() {
+    try { return localStorage.getItem(USER_KEY) || null; }
+    catch (e) { return null; }
+  }
+  function saveUser(nick) { localStorage.setItem(USER_KEY, nick); }
+  function clearUser() { localStorage.removeItem(USER_KEY); }
+  let currentUser = loadUser();
+
   /* ---------- progressi ---------- */
   const STORE_KEY = "la-ghisa-progress-v1";
   function loadProgress() {
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
     catch (e) { return {}; }
   }
-  function saveProgress(p) { localStorage.setItem(STORE_KEY, JSON.stringify(p)); }
+  function saveProgress(p) {
+    localStorage.setItem(STORE_KEY, JSON.stringify(p));
+  }
   let progress = loadProgress();
 
   function totalKg() {
@@ -172,7 +185,45 @@
     return '<header class="topbar"><div class="wrap">' +
       '<a class="brand" href="#/"><span class="disc" aria-hidden="true"></span>La Ghisa</a>' +
       '<span class="kg" id="kg-counter">carico totale <b>' + totalKg() + " kg</b></span>" +
+      '<span class="user-chip">' + esc(currentUser || "") + '<button type="button" id="logout-btn">cambia utente</button></span>' +
       "</div></header>";
+  }
+  function bindTopbar() {
+    const b = document.getElementById("logout-btn");
+    if (b) b.addEventListener("click", () => {
+      clearUser();
+      currentUser = null;
+      renderLogin();
+    });
+  }
+
+  function renderLogin() {
+    app.innerHTML = '<div class="login-screen"><div class="login-card">' +
+      '<span class="disc" aria-hidden="true"></span>' +
+      "<h1>La Ghisa</h1>" +
+      '<p class="sub">Entra con un nickname per salvare i tuoi progressi</p>' +
+      '<form id="login-form">' +
+      '<label for="nick-input">Nickname</label>' +
+      '<input type="text" id="nick-input" autocomplete="username" placeholder="es. squattista_92" maxlength="30" required />' +
+      '<p class="err" id="login-err">Scrivi un nickname per continuare.</p>' +
+      '<button type="submit" class="btn primary">Entra in sala pesi</button>' +
+      "</form>" +
+      '<p class="note">Niente password: e\' solo un nome per etichettare i tuoi progressi. Restano salvati su questo browser: cambiando dispositivo non li ritrovi.</p>' +
+      "</div></div>";
+
+    const form = document.getElementById("login-form");
+    const input = document.getElementById("nick-input");
+    const err = document.getElementById("login-err");
+    input.focus();
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nick = input.value.trim();
+      if (!nick) { err.classList.add("show"); return; }
+      err.classList.remove("show");
+      currentUser = nick;
+      saveUser(nick);
+      route();
+    });
   }
   function footerHtml() {
     return '<footer><div class="wrap">' +
@@ -220,6 +271,7 @@
       "</div></section>" + footerHtml();
 
     bindFooter();
+    bindTopbar();
     window.scrollTo(0, 0);
   }
 
@@ -275,6 +327,7 @@
       footerHtml();
 
     bindFooter();
+    bindTopbar();
 
     // editor + azioni
     const exercises = mod.items.filter(i => i.type === "exercise");
@@ -372,6 +425,10 @@
     }
     renderHome();
   }
-  window.addEventListener("hashchange", route);
-  route();
+  window.addEventListener("hashchange", () => { if (currentUser) route(); });
+  if (currentUser) {
+    route();
+  } else {
+    renderLogin();
+  }
 })();
